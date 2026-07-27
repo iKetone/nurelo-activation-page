@@ -38,12 +38,17 @@
   .btn:hover { filter:brightness(1.07); }
   .hinweis { display:block; margin-top:20px; font-size:12px; color:var(--text3); line-height:1.6; }
   .hinweis a { color:var(--accent); }
-  .fehler { color:var(--accent); font-weight:600; }
+  .laedt { font-size:13.5px; color:var(--text3); }
   [hidden] { display:none !important; }
 </style>
 </head>
 <body>
 <div class="card">
+  <div id="pruefe">
+    <h1>Nurelo aktivieren</h1>
+    <p class="laedt">Link wird geprüft …</p>
+  </div>
+
   <div id="ok" hidden>
     <h1>Nurelo aktivieren</h1>
     <p>Klicken Sie auf den Button, um Ihre Lizenz automatisch in der Nurelo-App zu aktivieren.</p>
@@ -57,9 +62,15 @@
     </span>
   </div>
 
+  <div id="info" hidden>
+    <h1 id="info-titel"></h1>
+    <p id="info-text"></p>
+    <span class="hinweis" id="info-hinweis"></span>
+  </div>
+
   <div id="fehlt" hidden>
     <h1>Link unvollständig</h1>
-    <p class="fehler">Dieser Aktivierungslink ist unvollständig oder fehlerhaft.</p>
+    <p>Dieser Aktivierungslink ist unvollständig oder fehlerhaft.</p>
     <span class="hinweis">
       Bitte öffnen Sie den Link direkt aus der E-Mail heraus. Wurde er beim Kopieren
       abgeschnitten, fordern Sie bitte einen neuen Link an.
@@ -69,21 +80,85 @@
 
 <script>
 (function () {
+  var STATUS_URL = 'https://bviiposthhyyuzbjclcm.supabase.co/functions/v1/token-status';
+
+  var TEXTE = {
+    verwendet: {
+      titel: 'Link bereits verwendet',
+      text:  'Dieser Aktivierungslink wurde schon eingelöst — Ihre Lizenz ist damit '
+           + 'bereits aktiviert. Sie können Nurelo wie gewohnt starten.',
+      hinweis: 'Läuft Nurelo auf einem weiteren Gerät oder unter einem anderen '
+             + 'Windows-Konto? Dann fordern Sie bitte einen neuen Link an.'
+    },
+    abgelaufen: {
+      titel: 'Link abgelaufen',
+      text:  'Dieser Aktivierungslink ist nicht mehr gültig. Aus Sicherheitsgründen '
+           + 'verfällt er nach 72 Stunden.',
+      hinweis: 'Bitte fordern Sie einen neuen Link an. Alternativ können Sie den '
+             + 'Lizenzschlüssel aus der E-Mail in der App unter „Lizenz aktivieren“ eintragen.'
+    },
+    zurueckgezogen: {
+      titel: 'Link zurückgezogen',
+      text:  'Dieser Aktivierungslink wurde zurückgezogen und kann nicht mehr verwendet werden.',
+      hinweis: 'Bitte wenden Sie sich an uns, um einen neuen Link zu erhalten.'
+    },
+    unbekannt: {
+      titel: 'Link nicht gefunden',
+      text:  'Dieser Aktivierungslink ist unbekannt. Möglicherweise wurde er beim '
+           + 'Kopieren abgeschnitten.',
+      hinweis: 'Bitte öffnen Sie den Link direkt aus der E-Mail heraus oder fordern Sie einen neuen an.'
+    }
+  };
+
+  function zeige(id) {
+    ['pruefe', 'ok', 'info', 'fehlt'].forEach(function (k) {
+      document.getElementById(k).hidden = (k !== id);
+    });
+  }
+
   // Token nur aus der URL lesen und streng prüfen, bevor er in ein href geschrieben
   // wird — der Server erzeugt ausschließlich UUID-artige Werte.
   var token = new URLSearchParams(location.search).get('token') || '';
   if (!/^[A-Za-z0-9_-]{8,128}$/.test(token)) {
-    document.getElementById('fehlt').hidden = false;
+    zeige('fehlt');
     return;
   }
 
   var ziel = 'nurelo://activate?token=' + encodeURIComponent(token);
-  document.getElementById('btn').setAttribute('href', ziel);
-  document.getElementById('ok').hidden = false;
 
-  // Automatischer Versuch. Der Button bleibt der verlässliche Weg, da Browser
-  // Auto-Weiterleitungen auf unbekannte URL-Schemata zunehmend blockieren.
-  try { location.href = ziel; } catch (e) {}
+  function aktivierenAnbieten() {
+    document.getElementById('btn').setAttribute('href', ziel);
+    zeige('ok');
+    // Automatischer Versuch. Der Button bleibt der verlässliche Weg, da Browser
+    // Auto-Weiterleitungen auf unbekannte URL-Schemata zunehmend blockieren.
+    try { location.href = ziel; } catch (e) {}
+  }
+
+  function infoAnzeigen(status) {
+    var t = TEXTE[status];
+    document.getElementById('info-titel').textContent   = t.titel;
+    document.getElementById('info-text').textContent    = t.text;
+    document.getElementById('info-hinweis').textContent = t.hinweis;
+    zeige('info');
+  }
+
+  // Statusabfrage ist reiner Komfort. Ist sie nicht erreichbar (offline, Endpunkt
+  // nicht deployt, Zeitüberschreitung), wird die Aktivierung trotzdem angeboten —
+  // sie darf niemals der Grund sein, dass jemand seine Lizenz nicht aktivieren kann.
+  var abbruch = new AbortController();
+  var frist = setTimeout(function () { abbruch.abort(); }, 4000);
+
+  fetch(STATUS_URL + '?token=' + encodeURIComponent(token), { signal: abbruch.signal })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      clearTimeout(frist);
+      if (d && TEXTE[d.status]) infoAnzeigen(d.status);
+      else aktivierenAnbieten();
+    })
+    .catch(function () {
+      clearTimeout(frist);
+      aktivierenAnbieten();
+    });
 })();
 </script>
 </body>
