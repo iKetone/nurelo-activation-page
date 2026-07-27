@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<title>Nurelo aktivieren</title>
+<style>
+  :root {
+    --bg:#f7f2e9; --card:#fffdf8; --border:#e7ddcc;
+    --text:#2b2118; --text2:#5c4d3c; --text3:#71604c; --accent:#c4633e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#211b14; --card:#2a2219; --border:#3f3527;
+      --text:#f3ece1; --text2:#e4d3b8; --text3:#bda98c; --accent:#d9b45a;
+    }
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    font-family:-apple-system, "Segoe UI", Roboto, sans-serif;
+    background:var(--bg); color:var(--text);
+    display:flex; align-items:center; justify-content:center;
+    min-height:100vh; padding:24px;
+  }
+  .card {
+    background:var(--card); border:1px solid var(--border); border-radius:18px;
+    padding:40px 36px; max-width:440px; width:100%; text-align:center;
+    box-shadow:0 6px 20px rgba(60,45,25,.08);
+  }
+  h1 { font-size:19px; margin-bottom:12px; }
+  p { font-size:13.5px; line-height:1.6; color:var(--text2); margin-bottom:20px; }
+  .btn {
+    display:inline-block; padding:13px 26px; background:var(--accent); color:#fff;
+    text-decoration:none; border-radius:100px; font-weight:600; font-size:14px;
+  }
+  .btn:hover { filter:brightness(1.07); }
+  .hinweis { display:block; margin-top:20px; font-size:12px; color:var(--text3); line-height:1.6; }
+  .hinweis a { color:var(--accent); }
+  .fehler { color:var(--accent); font-weight:600; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div id="ok" hidden>
+    <h1>Nurelo aktivieren</h1>
+    <p>Klicken Sie auf den Button, um Ihre Lizenz automatisch in der Nurelo-App zu aktivieren.</p>
+    <a class="btn" id="btn" href="#">Jetzt in Nurelo aktivieren</a>
+    <span class="hinweis">
+      Es passiert nichts? Dann ist Nurelo auf diesem Gerät noch nicht installiert oder nicht aktuell.<br>
+      <a href="https://github.com/iKetone/nurelo-releases/releases/latest">Nurelo herunterladen</a>
+      &middot; danach diesen Link erneut anklicken.<br><br>
+      Alternativ können Sie den Lizenzschlüssel aus der E-Mail in der App unter
+      „Lizenz aktivieren“ eintragen.
+    </span>
+  </div>
+
+  <div id="fehlt" hidden>
+    <h1>Link unvollständig</h1>
+    <p class="fehler">Dieser Aktivierungslink ist unvollständig oder fehlerhaft.</p>
+    <span class="hinweis">
+      Bitte öffnen Sie den Link direkt aus der E-Mail heraus. Wurde er beim Kopieren
+      abgeschnitten, fordern Sie bitte einen neuen Link an.
+    </span>
+  </div>
+</div>
+
+<script>
+(function () {
+  // Token nur aus der URL lesen und streng prüfen, bevor er in ein href geschrieben
+  // wird — der Server erzeugt ausschließlich UUID-artige Werte.
+  var token = new URLSearchParams(location.search).get('token') || '';
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(token)) {
+    document.getElementById('fehlt').hidden = false;
+    return;
+  }
+
+  var ziel = 'nurelo://activate?token=' + encodeURIComponent(token);
+  document.getElementById('btn').setAttribute('href', ziel);
+  document.getElementById('ok').hidden = false;
+
+  // Automatischer Versuch. Der Button bleibt der verlässliche Weg, da Browser
+  // Auto-Weiterleitungen auf unbekannte URL-Schemata zunehmend blockieren.
+  try { location.href = ziel; } catch (e) {}
+})();
+</script>
+</body>
+</html>
